@@ -4,6 +4,16 @@ This document declares the use of AI assistant tools (DeepMind's Antigravity AI 
 
 ---
 
+## AI Tools & Models Utilized
+
+During the development, refactoring, and debugging of the **Astrologer CRM** project, the following AI systems and models were actively utilized:
+
+* **Antigravity AI (Pair Programming & Code Generation):** Used for core architecture implementation, frontend responsive layout redesigns, and backend API routing. Within Antigravity, **Gemini** and **Claude** models were leveraged for code generation, structuring page layouts, and configuring CORS/environment settings.
+* **Code Diagnostics & Debugging:** **GitHub Copilot** and **ChatGPT** were used as supplementary tools for debugging error logs, diagnosing runtime exceptions, and optimizing code blocks.
+
+---
+
+
 ## 1. Scope of AI Involvement & Accomplished Milestones
 
 AI coding assistants were actively used across the lifecycle of the application to execute the following core integrations:
