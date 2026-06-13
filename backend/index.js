@@ -33,9 +33,10 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
-  'https://hamarapandit.onrender.com',
-  'https://hamarapandit1.vercel.app',
-  'https://hamarapandit.vercel.app',
+  'https://humarapandit.onrender.com',
+ 'https://humarapandit-esmg.onrender.com',
+  'https://humarapandit1.vercel.app',
+  'https://humarapandit.vercel.app',
   process.env.FRONTEND_URL,        // optional: set in Render dashboard
 ].filter(Boolean);
 
