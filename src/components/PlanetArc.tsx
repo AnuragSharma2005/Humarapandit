@@ -44,8 +44,8 @@ export default function PlanetArc({ selectedPlanetId, onSelectPlanet }: PlanetAr
           >
             {/* Dashed arc connection line (SVG) */}
             <svg
-              className="absolute inset-0 w-full pointer-events-none"
-              style={{ height: maxOffset + 180 }}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox={`0 0 1000 ${maxOffset + 180}`}
               preserveAspectRatio="none"
             >
               <defs>
@@ -61,9 +61,9 @@ export default function PlanetArc({ selectedPlanetId, onSelectPlanet }: PlanetAr
               {(() => {
                 const n = PLANETS_DATA.length;
                 const points = PLANETS_DATA.map((_, i) => {
-                  const x = ((i + 0.5) / n) * 100; // percentage x
+                  const x = ((i + 0.5) / n) * 1000; // mapped to viewBox width 1000
                   const y = getArcOffset(i) + 40; // +40 = planet center offset
-                  return `${x}%,${y}`;
+                  return `${x},${y}`;
                 });
                 const d = `M ${points[0]} ` + points.slice(1).map(p => `L ${p}`).join(" ");
                 return (
