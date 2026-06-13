@@ -1,4 +1,3 @@
-
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const TIMEAPI_URL = "https://www.timeapi.io/api/v1/timezone/coordinate";
 
@@ -27,6 +26,46 @@ function cleanText(value) {
     return value.name || value.title || JSON.stringify(value);
   }
   return "Unavailable";
+}
+
+function normalizePlanetResponse(response) {
+  if (!response) return [];
+
+  if (Array.isArray(response)) {
+    return response.filter((item) => item && typeof item === "object");
+  }
+
+  return Object.entries(response)
+    .filter(([key]) => /^\d+$/.test(key))
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([, value]) => value)
+    .filter((item) => item && typeof item === "object" && (item.name || item.full_name));
+}
+
+function getPlanetSign(planet) {
+  return planet.sign || planet.zodiac || planet.rasi || planet.full_name || "Unknown";
+}
+
+function toPlainText(value) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(toPlainText).filter(Boolean).join(" > ");
+  if (value && typeof value === "object") {
+    return toPlainText(
+      value.full_name ||
+      value.name ||
+      value.dasha ||
+      value.mahadasha ||
+      value.antardasha ||
+      value.current_dasa ||
+      value.birth_dasa ||
+      value.lord ||
+      value.label ||
+      value.title ||
+      value.value
+    );
+  }
+  return "";
 }
 
 // -------------------------------------------------------------
@@ -140,7 +179,7 @@ function computeAstrologyLocally(name, dob, tob, pob, loc) {
   } else {
     let elapsed = startDashaDurationRemaining;
     let lordIdx = (startNakIdx % 9) + 1;
-    while (elapsed < diffYears) {
+    while (elapsed < diffYears && lordIdx < 100) {
       const nextLord = dashaLords[lordIdx % 9];
       const duration = dashaYears[nextLord];
       if (elapsed + duration >= diffYears) {
@@ -151,6 +190,11 @@ function computeAstrologyLocally(name, dob, tob, pob, loc) {
       elapsed += duration;
       lordIdx++;
     }
+  }
+
+  // If calculation didn't result in a valid dasha, derive it from starting point
+  if (!currentDasha) {
+    currentDasha = `${startLord} / ${dashaLords[(startNakIdx + 1) % 9]}`;
   }
 
   const interpretations = {
@@ -270,40 +314,55 @@ export const getBirthChart = async (req, res, next) => {
         const planetRes = await fetch(`https://api.vedicastroapi.com/v3-json/horoscope/planet-details?${queryParams}`);
         if (planetRes.ok) {
           const planetData = await planetRes.json();
-          if (planetData.status === 200 && Array.isArray(planetData.response)) {
-            const rawPlanets = planetData.response;
-            const ascendant = rawPlanets.find(p => p.name === "Ascendant") || rawPlanets[0];
-            const ascSign = ascendant?.sign || "Leo";
+          if (planetData.status === 200 && planetData.response) {
+            const rawPlanets = normalizePlanetResponse(planetData.response);
+            const ascendant = rawPlanets.find((p) => p.name === "As" || p.full_name === "Ascendant") || rawPlanets[0];
+            const ascSign = getPlanetSign(ascendant) || "Leo";
             const lagnaSignNum = signsList.indexOf(ascSign) + 1 || 5;
 
             const getFormatSign = (p) => {
-              const idx = signsList.indexOf(p.sign);
-              return idx >= 0 ? `${signsList[idx]} (${signsHindi[idx]})` : p.sign;
+              const planetSign = getPlanetSign(p);
+              const idx = signsList.indexOf(planetSign);
+              return idx >= 0 ? `${signsList[idx]} (${signsHindi[idx]})` : planetSign;
             };
 
             const mappedPlanets = rawPlanets.map((p) => ({
-              name: p.name,
+              name: p.full_name || p.name,
               sign: getFormatSign(p),
               house: p.house,
               nakshatra: p.nakshatra || "Unknown"
             }));
 
-            const moon = rawPlanets.find(p => p.name === "Moon") || { sign: "Taurus", nakshatra: "Rohini" };
-            const moonSignIdx = signsList.indexOf(moon.sign);
-            const moonRashi = moonSignIdx >= 0 ? `${signsList[moonSignIdx]} (${signsHindi[moonSignIdx]})` : moon.sign;
+            const moon = rawPlanets.find((p) => p.name === "Mo" || p.full_name === "Moon") || { zodiac: "Taurus", nakshatra: "Rohini" };
+            const moonSignIdx = signsList.indexOf(getPlanetSign(moon));
+            const moonRashi = moonSignIdx >= 0 ? `${signsList[moonSignIdx]} (${signsHindi[moonSignIdx]})` : getPlanetSign(moon);
             const moonNak = moon.nakshatra;
 
             let dashaStr = "Jupiter / Venus";
+            let dashaFromApi = null;
             try {
               const dashaRes = await fetch(`https://api.vedicastroapi.com/v3-json/dashas/current-mahadasha?${queryParams}`);
               if (dashaRes.ok) {
                 const dashaData = await dashaRes.json();
                 if (dashaData.status === 200 && dashaData.response) {
-                  dashaStr = `${dashaData.response.mahadasha} / ${dashaData.response.antardasha}`;
+                  const maha = toPlainText(dashaData.response.mahadasha || dashaData.response.birth_dasa || dashaData.response.current_dasa || dashaData.response.lord || "Jupiter");
+                  const antara = toPlainText(dashaData.response.antardasha || dashaData.response.sub_dasha || dashaData.response.child_dasha || "Venus");
+                  dashaFromApi = `${maha || "Jupiter"} / ${antara || "Venus"}`;
+                  if (dashaFromApi && dashaFromApi !== "Jupiter / Venus") {
+                    dashaStr = dashaFromApi;
+                  }
                 }
               }
             } catch (dashaErr) {
               console.warn("Mahadasha fetch failed:", dashaErr.message);
+            }
+
+            // Use offline calculation as fallback if API didn't provide unique dasha
+            if (!dashaFromApi || dashaStr === "Jupiter / Venus") {
+              const offlineDasha = localDerivations.dasha;
+              if (offlineDasha && offlineDasha !== "Jupiter / Venus") {
+                dashaStr = offlineDasha;
+              }
             }
 
             const localDerivations = computeAstrologyLocally(name, dob, tob, pob, loc);
