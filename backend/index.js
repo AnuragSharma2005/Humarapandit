@@ -34,6 +34,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'https://hamarapandit.onrender.com',
+  'https://hamarapandit1.vercel.app',
   process.env.FRONTEND_URL,        // optional: set in Render dashboard
 ].filter(Boolean);
 
