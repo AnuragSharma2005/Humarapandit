@@ -25,7 +25,12 @@ Astrologer CRM is a full-stack web application designed to help astrologers mana
 - Video Consultations (WebRTC)
 - WhatsApp & SMS Notifications
 - PDF/CSV Report Export
-- Interactive Zodiac Visualization
+- Interactive Zodiac Visualization 
+
+**⚠️ Important Note**
+- The backend of this project is deployed on Render's free tier. As free Render services automatically spin down after periods of inactivity, the server may take
+  approximately **1–2 minutes** to start and respond to the first request.
+
 
 ## 📄 Note
 
