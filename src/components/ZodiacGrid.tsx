@@ -9,12 +9,26 @@ import { ZodiacSign } from "../types";
 import { Calendar, Zap, Compass, Star } from "lucide-react";
 
 export default function ZodiacGrid() {
-  const [activeIndex, setActiveIndex] = useState(2); // Start at Gemini like reference
+  const [activeIndex, setActiveIndex] = useState(2);
   const [isAutoRotating, setIsAutoRotating] = useState(true);
+
+  // Responsive circle dimensions
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 640);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const RADIUS = isMobile ? 145 : 220;
+  const CENTER = isMobile ? 175 : 260;
+  const BTN_SIZE = isMobile ? 36 : 44;   // px — zodiac sign button size
+  const BTN_OFFSET = BTN_SIZE / 2;       // used to center the button on its position
 
   const activeSign = ZODIAC_SIGNS_DATA[activeIndex];
 
-  // Auto-rotate through signs
+  // Auto-rotate
   useEffect(() => {
     if (!isAutoRotating) return;
     const interval = setInterval(() => {
@@ -26,17 +40,12 @@ export default function ZodiacGrid() {
   const handleSelectSign = useCallback((index: number) => {
     setActiveIndex(index);
     setIsAutoRotating(false);
-    // Resume auto-rotation after 10 seconds of inactivity
     const timeout = setTimeout(() => setIsAutoRotating(true), 10000);
     return () => clearTimeout(timeout);
   }, []);
 
-  // Circle layout calculations
-  const RADIUS = 220; // px radius for the zodiac circle
-  const CENTER = 260; // center point of the SVG/container
-
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-16 relative z-10" id="zodiac-signs-section">
+    <div className="w-full max-w-6xl mx-auto px-4 py-12 md:py-16 relative z-10" id="zodiac-signs-section">
       <div className="text-center mb-12">
         <span className="px-4 py-1.5 rounded-full bg-slate-950/85 border border-purple-500/20 text-indigo-400 text-xs font-semibold uppercase tracking-wider inline-block mb-3">
           ⭐ Zodiac Constellations
@@ -84,15 +93,18 @@ export default function ZodiacGrid() {
             {/* Rotating golden orbit indicator */}
             {(() => {
               const activeAngle = (activeIndex * 30 - 90) * (Math.PI / 180);
-              const orbitR = RADIUS + 30;
-              const orbX = CENTER + Math.cos(activeAngle) * orbitR - 16;
-              const orbY = CENTER + Math.sin(activeAngle) * orbitR - 16;
+              const orbitR = RADIUS + (isMobile ? 18 : 30);
+              const orbSize = isMobile ? 24 : 32;
+              const orbX = CENTER + Math.cos(activeAngle) * orbitR - orbSize / 2;
+              const orbY = CENTER + Math.sin(activeAngle) * orbitR - orbSize / 2;
               return (
                 <div
-                  className="absolute w-8 h-8 rounded-full border-2 border-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)] z-20 transition-all duration-700 ease-in-out"
+                  className="absolute rounded-full border-2 border-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)] z-20 transition-all duration-700 ease-in-out"
                   style={{
                     left: orbX,
                     top: orbY,
+                    width: orbSize,
+                    height: orbSize,
                     background: 'radial-gradient(circle, rgba(251,191,36,0.15) 0%, transparent 70%)',
                   }}
                 />
@@ -127,16 +139,18 @@ export default function ZodiacGrid() {
             {/* Center selected sign display */}
             <div className="absolute flex flex-col items-center justify-center z-10"
               style={{
-                top: CENTER - 40,
-                left: CENTER - 40,
-                width: 80,
-                height: 80,
+                top: CENTER - (isMobile ? 30 : 40),
+                left: CENTER - (isMobile ? 30 : 40),
+                width: isMobile ? 60 : 80,
+                height: isMobile ? 60 : 80,
               }}
             >
-              <div className={`w-[76px] h-[76px] rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+              <div className={`rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
                 'border-amber-400/60 bg-amber-400/10 shadow-[0_0_30px_rgba(251,191,36,0.2)]'
-              }`}>
-                <span className="text-3xl text-amber-400 font-serif transition-all duration-300">
+              }`}
+              style={{ width: isMobile ? 56 : 76, height: isMobile ? 56 : 76 }}
+              >
+                <span className={`font-serif transition-all duration-300 text-amber-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
                   {activeSign.symbol}
                 </span>
               </div>
@@ -145,15 +159,15 @@ export default function ZodiacGrid() {
             {/* 12 zodiac signs around the circle */}
             {ZODIAC_SIGNS_DATA.map((sign, index) => {
               const angle = (index * 30 - 90) * (Math.PI / 180);
-              const x = CENTER + Math.cos(angle) * RADIUS - 22;
-              const y = CENTER + Math.sin(angle) * RADIUS - 22;
+              const x = CENTER + Math.cos(angle) * RADIUS - BTN_OFFSET;
+              const y = CENTER + Math.sin(angle) * RADIUS - BTN_OFFSET;
               const isActive = index === activeIndex;
 
               return (
                 <button
                   key={sign.id}
                   onClick={() => handleSelectSign(index)}
-                  className={`absolute w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer z-10 ${
+                  className={`absolute rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer z-10 ${
                     isActive
                       ? "bg-amber-400 text-slate-950 scale-125 shadow-[0_0_20px_rgba(251,191,36,0.5)] border-2 border-amber-300"
                       : "bg-slate-800/80 text-purple-300 hover:bg-slate-700 hover:text-amber-400 border border-slate-700/50 hover:border-purple-400/40"
@@ -161,10 +175,12 @@ export default function ZodiacGrid() {
                   style={{
                     left: x,
                     top: y,
+                    width: BTN_SIZE,
+                    height: BTN_SIZE,
                   }}
                   title={sign.name}
                 >
-                  <span className={`text-lg font-serif ${isActive ? "text-slate-950 font-bold" : ""}`}>
+                  <span className={`font-serif ${isMobile ? 'text-base' : 'text-lg'} ${isActive ? "text-slate-950 font-bold" : ""}`}>
                     {sign.symbol}
                   </span>
                 </button>
